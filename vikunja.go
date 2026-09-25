@@ -9,8 +9,21 @@ import (
 	"os"
 	"strings"
 
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	"gopkg.in/yaml.v3"
 )
+
+// Vikunja хранит описание как HTML.
+var markdown = goldmark.New(goldmark.WithExtensions(extension.GFM))
+
+func toHTML(md string) (string, error) {
+	var buf bytes.Buffer
+	if err := markdown.Convert([]byte(md), &buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
 
 type Config struct {
 	URL       string `yaml:"url"`
@@ -36,9 +49,13 @@ func loadConfig(path string) (Config, error) {
 
 // createTask создаёт задачу в проекте и возвращает ссылку на неё.
 func createTask(c Config, title, description string, priority int) (string, error) {
+	html, err := toHTML(description)
+	if err != nil {
+		return "", err
+	}
 	body, err := json.Marshal(map[string]any{
 		"title":       title,
-		"description": description,
+		"description": html,
 		"priority":    priority,
 	})
 	if err != nil {
